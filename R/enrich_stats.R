@@ -15,17 +15,17 @@
 #'@export
 #'
 CalculateHyperScore <- function(mSetObj=NA){
-  
+
   mSetObj <- .get.mSet(mSetObj);
-  
+
   # make a clean dataSet$cmpd data based on name mapping
   # only valid hmdb name will be used
   nm.map <- GetFinalNameMap(mSetObj);
   valid.inx <- !(is.na(nm.map$hmdb)| duplicated(nm.map$hmdb));
   ora.vec <- nm.map$hmdb[valid.inx];
-  
+
   q.size<-length(ora.vec);
-  
+
   if(is.na(ora.vec) || q.size==0) {
     AddErrMsg("No valid HMDB compound names found!");
     return(0);
@@ -33,27 +33,27 @@ CalculateHyperScore <- function(mSetObj=NA){
 
   # move to api only if R package + KEGG msets
   if(!.on.public.web & grepl("kegg", mSetObj$analSet$msetlibname)){
-    
-    mSetObj$api$oraVec <- ora.vec; 
-    
+
+    mSetObj$api$oraVec <- ora.vec;
+
     if(mSetObj$api$filter){
       mSetObj$api$filterData <- mSetObj$dataSet$metabo.filter.kegg
       toSend <- list(mSet = mSetObj, libNm = mSetObj$api$libname, filter = mSetObj$api$filter,
                      oraVec = mSetObj$api$oraVec, filterData = mSetObj$api$filterData,
                      excludeNum = mSetObj$api$excludeNum)
     }else{
-      toSend <- list(mSet = mSetObj,libNm = mSetObj$api$libname, 
+      toSend <- list(mSet = mSetObj,libNm = mSetObj$api$libname,
                      filter = mSetObj$api$filter, oraVec = mSetObj$api$oraVec, excludeNum = mSetObj$api$excludeNum)
     }
-    
+
     load_httr()
     base <- api.base
     endpoint <- "/msetora"
     call <- paste(base, endpoint, sep="")
     print(call)
-    
+
     saveRDS(toSend, "tosend.rds")
-    request <- httr::POST(url = call, 
+    request <- httr::POST(url = call,
                           body = list(rds = upload_file("tosend.rds", "application/octet-stream")))
 
     # check if successful
@@ -61,11 +61,11 @@ CalculateHyperScore <- function(mSetObj=NA){
       AddErrMsg("Failed to connect to Xia Lab API Server!")
       return(0)
     }
-    
+
     # now process return
     mSetObj <- httr::content(request, "raw")
     mSetObj <- unserialize(mSetObj)
-    
+
     # parse json response from server to results
     if(is.null(mSetObj$analSet$ora.mat)){
       AddErrMsg("Error! Mset ORA via api.metaboanalyst.ca unsuccessful!")
@@ -73,13 +73,13 @@ CalculateHyperScore <- function(mSetObj=NA){
     }
 
     print("Mset ORA via api.metaboanalyst.ca successful!")
-    
+
     fast.write.csv(mSetObj$analSet$ora.mat, file="msea_ora_result.csv");
     return(.set.mSet(mSetObj));
   }
-  
+
   current.mset <- current.msetlib$member
-  
+
   # make a clean metabilite set based on reference metabolome filtering
   # also need to update ora.vec to the updated mset
   if(mSetObj$dataSet$use.metabo.filter && !is.null(mSetObj$dataSet$metabo.filter.hmdb)){
@@ -88,54 +88,55 @@ CalculateHyperScore <- function(mSetObj=NA){
     ora.vec <- ora.vec[ora.vec %in% unique(unlist(current.mset, use.names = FALSE))]
     q.size <- length(ora.vec);
   }
-  
+
   # total uniq cmpds in the current mset lib
   uniq.count <- length(unique(unlist(current.mset, use.names = FALSE)));
-  
+
   set.size<-length(current.mset);
-  
+
   if(set.size ==1){
     AddErrMsg("Cannot perform enrichment analysis on a single metabolite set!");
     return(0);
   }
-  
+
   hits<-lapply(current.mset, function(x){x[x %in% ora.vec]});
   # lapply(current.mset, function(x) grepl("Ammonia", x))
   #hits<-lapply(current.mset, function(x) grepl(paste(ora.vec, collapse = "|"), x))
-  
+
   hit.num<-unlist(lapply(hits, function(x) length(x)), use.names = FALSE);
-  
+
   if(sum(hit.num>0)==0){
     AddErrMsg("No match was found to the selected metabolite set library!");
     return(0);
   }
-  
+
   set.num<-unlist(lapply(current.mset, length), use.names = FALSE);
-  
+
   # prepare for the result table
-  res.mat<-matrix(NA, nrow=set.size, ncol=6);        
+  res.mat<-matrix(NA, nrow=set.size, ncol=6);
   rownames(res.mat)<-names(current.mset);
   colnames(res.mat)<-c("total", "expected", "hits", "Raw p", "Holm p", "FDR");
   for(i in 1:set.size){
     res.mat[i,1]<-set.num[i];
     res.mat[i,2]<-q.size*(set.num[i]/uniq.count);
     res.mat[i,3]<-hit.num[i];
-    
+
     # use lower.tail = F for P(X>x)
     # phyper("# of white balls drawn", "# of white balls in the urn", "# of black balls in the urn", "# of balls drawn")
     res.mat[i,4]<-phyper(hit.num[i]-1, set.num[i], uniq.count-set.num[i], q.size, lower.tail=F);
   }
-  
+
   # adjust for multiple testing problems
   res.mat[,5] <- p.adjust(res.mat[,4], "holm");
   res.mat[,6] <- p.adjust(res.mat[,4], "fdr");
-  
-  res.mat <- res.mat[hit.num>0,];
-  
+
+  #- Add drop = FALSE if only one set is selected.
+  res.mat <- res.mat[hit.num > 0, , drop = FALSE]
+
   ord.inx<-order(res.mat[,4]);
-  mSetObj$analSet$ora.mat <- signif(res.mat[ord.inx,],3);
+  mSetObj$analSet$ora.mat <- signif(res.mat[ord.inx, , drop = FALSE], 3)
   mSetObj$analSet$ora.hits <- hits;
-  
+
   fast.write.csv(mSetObj$analSet$ora.mat, file="msea_ora_result.csv");
   return(.set.mSet(mSetObj));
 }
@@ -151,20 +152,20 @@ CalculateHyperScore <- function(mSetObj=NA){
 CalculateGlobalTestScore <- function(mSetObj=NA){
 
   mSetObj <- .get.mSet(mSetObj);
-  
+
   if(.on.public.web){
     .prepare.globaltest.score(mSetObj);
-    .perform.computing();   
-    .save.globaltest.score(mSetObj);  
+    .perform.computing();
+    .save.globaltest.score(mSetObj);
     return(.set.mSet(mSetObj));
   }else{
     mSetObj <- .prepare.globaltest.score(mSetObj);
-    
+
     if(!grepl("kegg", mSetObj$analSet$msetlibname)){
-      .perform.computing();   
-      mSetObj <- .save.globaltest.score(mSetObj);  
+      .perform.computing();
+      mSetObj <- .save.globaltest.score(mSetObj);
     }
-  } 
+  }
 
   return(.set.mSet(mSetObj));
 }
@@ -178,7 +179,7 @@ CalculateGlobalTestScore <- function(mSetObj=NA){
   valid.inx <- !(is.na(nm.map$hmdb)| duplicated(nm.map$hmdb));
   nm.map <- nm.map[valid.inx,];
   orig.nms <- nm.map$query;
-  
+
   hmdb.inx <- match(colnames(mSetObj$dataSet$norm),orig.nms);
   hit.inx <- !is.na(hmdb.inx);
   msea.data <- mSetObj$dataSet$norm[,hit.inx];
@@ -189,77 +190,77 @@ CalculateGlobalTestScore <- function(mSetObj=NA){
     mSetObj$api$mseaDataColNms <- colnames(msea.data)
     msea.data <- as.matrix(msea.data)
     dimnames(msea.data) = NULL
-    mSetObj$api$mseaData <- msea.data; 
+    mSetObj$api$mseaData <- msea.data;
     mSetObj$api$cls <- mSetObj$dataSet$cls
-    
+
     if(mSetObj$api$filter){
       mSetObj$api$filterData <- mSetObj$dataSet$metabo.filter.hmdb
-      
-      toSend <- list(mSet = mSetObj, libNm = mSetObj$api$libname, filter = mSetObj$api$filter, mseaData = mSetObj$api$mseaData, mseaDataColNms = mSetObj$api$mseaDataColNms, 
+
+      toSend <- list(mSet = mSetObj, libNm = mSetObj$api$libname, filter = mSetObj$api$filter, mseaData = mSetObj$api$mseaData, mseaDataColNms = mSetObj$api$mseaDataColNms,
                      filterData = mSetObj$api$filterData, cls = mSetObj$api$cls, excludeNum = mSetObj$api$excludeNum)
     }else{
-      toSend <- list(mSet = mSetObj, libNm = mSetObj$api$libname, filter = mSetObj$api$filter, mseaData = mSetObj$api$mseaData, mseaDataColNms = mSetObj$api$mseaDataColNms, 
+      toSend <- list(mSet = mSetObj, libNm = mSetObj$api$libname, filter = mSetObj$api$filter, mseaData = mSetObj$api$mseaData, mseaDataColNms = mSetObj$api$mseaDataColNms,
                      cls = mSetObj$api$cls, excludeNum = mSetObj$api$excludeNum)
     }
-    
+
     load_httr()
     base <- api.base
     endpoint <- "/msetqea"
     call <- paste(base, endpoint, sep="")
     print(call)
-    
+
     saveRDS(toSend, "tosend.rds")
-    request <- httr::POST(url = call, 
+    request <- httr::POST(url = call,
                           body = list(rds = upload_file("tosend.rds", "application/octet-stream")))
-    
+
     # check if successful
     if(request$status_code != 200){
       AddErrMsg("Failed to connect to Xia Lab API Server!")
       return(0)
     }
-    
+
     # now process return
     mSetObj <- httr::content(request, "raw")
     mSetObj <- unserialize(mSetObj)
-    
+
     if(is.null(mSetObj$analSet$qea.mat)){
       AddErrMsg("Error! Mset QEA via api.metaboanalyst.ca unsuccessful!")
       return(0)
     }
 
     print("Enrichment QEA via api.metaboanalyst.ca successful!")
-    
+
     fast.write.csv(mSetObj$analSet$qea.mat, file="msea_qea_result.csv");
     return(.set.mSet(mSetObj));
   }
-  
+
   # now, perform the enrichment analysis
   set.size <- length(current.msetlib);
-  
+
   if(set.size == 1){
     AddErrMsg("Cannot perform enrichment analysis on a single metabolite sets!");
     return(0);
   }
-  
-  current.mset <- current.msetlib$member; 
-  
+
+  current.mset <- current.msetlib$member;
+
   # make a clean metabolite set based on reference metabolome filtering
   if(mSetObj$dataSet$use.metabo.filter && !is.null('mSetObj$dataSet$metabo.filter.hmdb')){
     current.mset <- lapply(current.msetlib$member, function(x){x[x %in% mSetObj$dataSet$metabo.filter.hmdb]})
     mSetObj$dataSet$filtered.mset <- current.mset;
   }
-  
+
   set.num <- unlist(lapply(current.mset, length), use.names = FALSE);
-  
+
   # first, get the matched entries from current.mset
   hits <- lapply(current.mset, function(x){x[x %in% colnames(msea.data)]});
   phenotype <- mSetObj$dataSet$cls;
-  
+
   # there are more steps, better drop a function to compute in the remote env.
   my.fun <- function(){
     gt.obj <- globaltest::gt(dat.in$cls, dat.in$data, subsets=dat.in$subsets);
     gt.res <- globaltest::result(gt.obj);
-    
+
     match.num <- gt.res[,5];
     if(sum(match.num>0)==0){
       return(NA);
@@ -274,11 +275,11 @@ CalculateGlobalTestScore <- function(mSetObj=NA){
     }
     return(list(gt.res=gt.res, pvals=stat.mat[,1]));
   }
-  
+
   dat.in <- list(cls=phenotype, data=msea.data, subsets=hits, my.fun=my.fun);
   qs::qsave(dat.in, file="dat.in.qs");
-  
-  # store necessary data 
+
+  # store necessary data
   mSetObj$analSet$set.num <- set.num;
   mSetObj$analSet$qea.hits <- hits;
   mSetObj$analSet$msea.data <- msea.data;
@@ -288,34 +289,34 @@ CalculateGlobalTestScore <- function(mSetObj=NA){
 .save.globaltest.score <- function(mSetObj = NA){
 
   mSetObj <- .get.mSet(mSetObj);
-  dat.in <- qs::qread("dat.in.qs"); 
+  dat.in <- qs::qread("dat.in.qs");
   my.res <- dat.in$my.res;
   set.num <- mSetObj$analSet$set.num;
-  
+
   if(length(my.res)==1 && is.na(my.res)){
     AddErrMsg("No match was found to the selected metabolite set library!");
     return(0);
   }
-  
+
   mSetObj$analSet$qea.pvals <- my.res$pvals; # p value for individual cmpds
   gt.res <- my.res$gt.res;
-  
+
   raw.p <- gt.res[,1];
   # add adjust p values
   bonf.p <- p.adjust(raw.p, "holm");
   fdr.p <- p.adjust(raw.p, "fdr");
-  
+
   res.mat <- cbind(set.num, gt.res[,5], gt.res[,2], gt.res[,3], raw.p, bonf.p, fdr.p);
   rownames(res.mat) <- rownames(gt.res);
   colnames(res.mat) <- c("Total Cmpd", "Hits", "Statistic Q", "Expected Q", "Raw p", "Holm p", "FDR");
-  
+
   hit.inx<-res.mat[,2]>0;
   res.mat<-res.mat[hit.inx, , drop = FALSE];
   ord.inx<-order(res.mat[,5]);
   res.mat<-res.mat[ord.inx, , drop = FALSE];
   mSetObj$analSet$qea.mat <- signif(res.mat,5);
   fast.write.csv(mSetObj$analSet$qea.mat, file="msea_qea_result.csv");
-  
+
   return(.set.mSet(mSetObj));
 }
 
@@ -328,32 +329,32 @@ CalculateGlobalTestScore <- function(mSetObj=NA){
 #'@export
 #'
 CalculateSSP<-function(mSetObj=NA){
-  
+
   mSetObj <- .get.mSet(mSetObj);
-  
+
   # first update the compound name to hmdb valid name
   nm.map <- GetFinalNameMap(mSetObj);
-  
+
   valid.inx <- !(is.na(nm.map$hmdb)|duplicated(nm.map$hmdb));
   nm.map <- nm.map[valid.inx,];
   orig.nms <- nm.map$query;
-  
+
   hmdb.inx <- match(mSetObj$dataSet$cmpd, orig.nms);
   match.inx <- !is.na(hmdb.inx);
-  
+
   # note, must use "as.character" since string column from data frame will be converted to factors
   # when they used with numerics, they will be changed to numbers, not string
   ssp.nm <- as.character(nm.map$hmdb[hmdb.inx[match.inx]]);
   ssp.vec <- mSetObj$dataSet$norm[match.inx];
-  
+
   cmpd.db <- .get.my.lib("compound_db.qs");
-  
+
   hit.inx <- match(tolower(ssp.nm), tolower(cmpd.db$name));
-  
+
   # create the result mat
   res.mat<-matrix("NA", nrow=length(ssp.nm), ncol=6);
   colnames(res.mat)<-c("name","conc", "hmdb", "refs", "state", "details");
-  
+
   ssp.lows <- list();
   ssp.highs <- list();
   ssp.means <- list();
@@ -384,7 +385,7 @@ CalculateSSP<-function(mSetObj=NA){
         concs<-as.numeric(unlist(strsplit(hits$conc, " - ", fixed=TRUE), use.names = FALSE));
         pmid <- hits$pmid;
         refs <- hits$refs;
-        
+
         low.inx<-seq(1,length(concs)-2, 3);
         mean.inx<-seq(2,length(concs)-1, 3);
         high.inx<-seq(3,length(concs), 3);
@@ -392,7 +393,7 @@ CalculateSSP<-function(mSetObj=NA){
         mean.conc <-concs[mean.inx];
         high.conc<-concs[high.inx];
         conc.show <- paste(mean.conc, " (", low.conc, " - ", high.conc, ")", sep="", collapse="; ");
-        
+
         ssp.lows[[i]]<-low.conc;
         ssp.means[[i]]<-mean.conc;
         ssp.highs[[i]]<-high.conc;
@@ -431,9 +432,9 @@ CalculateSSP<-function(mSetObj=NA){
 #'in the enrichment analysis if the library is based on chemical ontologies.
 #'@param mSetObj Input the name of the created mSetObj (see InitDataObjects)
 #'@param imgName Input a name for the plot
-#'@param format Select the image format, "png", or "pdf". 
-#'@param dpi Input the dpi. If the image format is "pdf", users need not define the dpi. For "png" images, 
-#'the default dpi is 72. It is suggested that for high-resolution images, select a dpi of 300.  
+#'@param format Select the image format, "png", or "pdf".
+#'@param dpi Input the dpi. If the image format is "pdf", users need not define the dpi. For "png" images,
+#'the default dpi is 72. It is suggested that for high-resolution images, select a dpi of 300.
 #'@param width Numeric, input the width, the default is 8.
 #'@param maxClass Numeric, input the maximum number of lipid classes to
 #'include in the pie-chart. By default this is set to 15.
@@ -443,28 +444,28 @@ CalculateSSP<-function(mSetObj=NA){
 
 PlotEnrichPieChart <- function(mSetObj=NA, enrichType, imgName, format="png", dpi=72, width=8,
                                  maxClass = 15, colPal = "Set1"){
-  
+
   mSetObj <- .get.mSet(mSetObj);
 
   if(.on.public.web){
     load_ggplot()
   }
-  
+
   # make a clean dataSet$cmpd data based on name mapping
   # only valid hmdb name will be used
   nm.map <- GetFinalNameMap(mSetObj);
   valid.inx <- !(is.na(nm.map$hmdb)| duplicated(nm.map$hmdb));
   ora.vec <- nm.map$hmdb[valid.inx];
-  
+
   q.size <- length(ora.vec);
-  
+
   if(is.na(ora.vec) || q.size==0) {
     AddErrMsg("No valid HMDB compound names found!");
     return(0);
   }
-  
+
   current.mset <- current.msetlib$member
-  
+
   # make a clean metabilite set based on reference metabolome filtering
   # also need to update ora.vec to the updated mset
   if(mSetObj$dataSet$use.metabo.filter && !is.null(mSetObj$dataSet$metabo.filter.hmdb)){
@@ -473,45 +474,45 @@ PlotEnrichPieChart <- function(mSetObj=NA, enrichType, imgName, format="png", dp
     ora.vec <- ora.vec[ora.vec %in% unique(unlist(current.mset, use.names = FALSE))]
     q.size <- length(ora.vec);
   }
-  
+
   set.size <- length(current.mset);
-  
+
   if(set.size ==1){
     AddErrMsg("Cannot create pie-chart for a single metabolite set!");
     return(0);
   }
-  
+
   hits <- lapply(current.mset, function(x){x[x %in% ora.vec]});
   hit.num <- unlist(lapply(hits, function(x) length(x)), use.names = FALSE);
-  
+
   if(sum(hit.num>0)==0){
     AddErrMsg("No matches were found to the selected metabolite set library!");
     return(0);
   }
-  
+
   hit.members <- unlist(lapply(hits, function(x) paste(x, collapse = "; ")))
-  
+
   pie.data <- data.frame(Group = names(hits), Hits = as.numeric(hit.num), Members = hit.members)
   pie.data <- pie.data[!(pie.data[,2]==0), ]
   ord.inx <- order(pie.data[,2], decreasing = T);
   pie.data <- pie.data[ord.inx, , drop = FALSE];
-  
+
   if(nrow(pie.data) > maxClass){
     pie.data <- pie.data[1:maxClass,]
   }
 
   mSetObj$analSet$enrich.pie.data <- pie.data
-  
+
   if(nrow(pie.data) > 9){
     col.fun <- grDevices::colorRampPalette(RColorBrewer::brewer.pal(8, colPal))
     group_colors <- col.fun(nrow(pie.data))
   }else{
     group_colors <- RColorBrewer::brewer.pal(8, colPal)[1:nrow(pie.data)]
   }
-  
+
   names(group_colors) <- pie.data[,1]
   mSetObj$analSet$enrich.pie.cols <- group_colors
-  
+
   # Basic piechart
   p <- ggplot(pie.data, aes(x="", y=Hits, fill=Group)) +
     geom_bar(stat="identity", width=1, color="white") +
@@ -522,14 +523,14 @@ PlotEnrichPieChart <- function(mSetObj=NA, enrichType, imgName, format="png", dp
           legend.title=element_text(size=13))
 
   imgName <- paste(imgName, "dpi", dpi, ".", format, sep="");
-  
+
   long.name <- max(nchar(pie.data[,1]))
-  
+
   if(long.name > 25){
     w <- 10
     h <- 7
   }else{
-    h <- width - 1 
+    h <- width - 1
     w <- width
   }
 
@@ -613,7 +614,7 @@ GetSSPTable<-function(mSetObj=NA){
   selected.col<-rep(0, nrow(ssp.res));
   inx<-match(mSetObj$dataSet$cmpd, mSetObj$analSet$ssp.mat[,1]);
   selected.col[inx]<-1;
-  
+
   print(xtable::xtable(cbind(ssp.res, selected = selected.col),align="l|l|p{8cm}|c|c", caption="Comparison with Reference Concentrations"),
         tabular.environment = "longtable", caption.placement="top", size="\\scriptsize");
 }
@@ -629,15 +630,15 @@ GetSSPTable<-function(mSetObj=NA){
 #'
 GetHTMLMetSet<-function(mSetObj=NA, msetNm){
   mSetObj <- .get.mSet(mSetObj);
-  
+
   hits <- NULL;
-  
+
   if(mSetObj$analSet$type=="msetora" || mSetObj$analSet$type=="msetssp"){
     hits <- mSetObj$analSet$ora.hits;
   }else{
     hits <- mSetObj$analSet$qea.hits;
   }
-  
+
   # highlighting with different colors
   # this is meaningless for very large (>200) metabolite sets (i.e. chemical class)
   mset <- current.msetlib$member[[msetNm]];
@@ -713,7 +714,7 @@ GetORATable<-function(mSetObj=NA){
     print(xtable::xtable(res,align="p{5cm}|l|l|l|l||ll|l|l", display=c("s","d","f","d","E","E", "E","E", "f"),
                          caption="Result from Pathway Analysis"),
           tabular.environment = "longtable", caption.placement="top", size="\\scriptsize");
-  }      
+  }
 }
 
 GetQEA.colorBar<-function(mSetObj=NA){
