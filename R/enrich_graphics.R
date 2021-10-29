@@ -3,12 +3,12 @@
 #'Functions for various plots for enrichment analysis
 #'@usage PlotQEA.MetSet(mSetObj=NA, setNM, format="png", dpi=72, width=NA)
 #'@param mSetObj Input the name of the created mSetObj (see InitDataObjects)
-#'@param setNM Input the name of the metabolite set 
-#'@param format Select the image format, "png", or "pdf". 
-#'@param dpi Input the dpi. If the image format is "pdf", users need not define the dpi. For "png" images, 
-#'the default dpi is 72. It is suggested that for high-resolution images, select a dpi of 300.  
+#'@param setNM Input the name of the metabolite set
+#'@param format Select the image format, "png", or "pdf".
+#'@param dpi Input the dpi. If the image format is "pdf", users need not define the dpi. For "png" images,
+#'the default dpi is 72. It is suggested that for high-resolution images, select a dpi of 300.
 #'@param width Input the width, there are 2 default widths, the first, width = NULL, is 10.5.
-#'The second default is width = 0, where the width is 7.2. Otherwise users can input their own width.  
+#'The second default is width = 0, where the width is 7.2. Otherwise users can input their own width.
 #'@author Jeff Xia \email{jeff.xia@mcgill.ca}
 #'McGill University, Canada
 #'License: GNU GPL (>= 2)
@@ -26,7 +26,7 @@ PlotQEA.MetSet<-function(mSetObj=NA, setNM, format="png", dpi=72, width=NA){
     imgNM <-substr(imgNM, 0, 18);
   }
   imgName <- paste(imgNM, "dpi", dpi, ".", format, sep="");
-  
+
   if(is.na(width)){
     w <- 7;
   }else if(width == 0){
@@ -34,11 +34,11 @@ PlotQEA.MetSet<-function(mSetObj=NA, setNM, format="png", dpi=72, width=NA){
   }else{
     w <- width;
   }
-  
+
   h <- w;
-  
+
   mSetObj$imgSet$qea.mset<-imgName;
-  
+
   # hits in the current mset
   mset <- current.msetlib$member[[setNM]];
   hit.cmpds <- mSetObj$analSet$qea.hits[[setNM]];
@@ -46,8 +46,8 @@ PlotQEA.MetSet<-function(mSetObj=NA, setNM, format="png", dpi=72, width=NA){
 
   #reorder based on p vals
   ord.inx <- order(hit.pvals);
-  hit.cmpds <- hit.cmpds[ord.inx]; 
-  hit.pvals <- signif(hit.pvals[ord.inx],3); 
+  hit.cmpds <- hit.cmpds[ord.inx];
+  hit.pvals <- signif(hit.pvals[ord.inx],3);
 
   if(.on.public.web){
     load_lattice()
@@ -61,28 +61,28 @@ PlotQEA.MetSet<-function(mSetObj=NA, setNM, format="png", dpi=72, width=NA){
   num <- length(hit.cmpds);
   len <- length(mSetObj$dataSet$cls);
   conc.vec <- lbl.vec <- cls.vec <- NULL;
-  
+
   for(i in 1:num){
         cmpd <- hit.cmpds[i];
         conc.vec <- c(conc.vec, mSetObj$analSet$msea.data[,cmpd]);
         cls.vec <- c(cls.vec, as.character(mSetObj$dataSet$cls));
         cmpd.p <- paste(cmpd, " (p=", hit.pvals[i], ")", sep="");
-        lbl.vec <- c(lbl.vec, rep(cmpd.p, len));      
+        lbl.vec <- c(lbl.vec, rep(cmpd.p, len));
   }
-  
+
   cls.vec <- as.factor(cls.vec);
   lbl.vec <- factor(lbl.vec, levels = unique(lbl.vec));
 
   num <- length(hit.cmpds);
   boxdata <- data.frame(Feature = lbl.vec, Abundance = conc.vec, Class = cls.vec)
-  
+
   # calculate width based on the dataset number
   if(num == 1){
-    
+
     p <- ggplot(data = boxdata, aes(x=Class, y=Abundance)) + geom_boxplot(aes(fill=Class), outlier.shape = NA, outlier.colour=NA)
     p <- p + theme(plot.title = element_text(hjust = 0.5)) + guides(fill=guide_legend(title="Group"))
     p <- p + xlab("") + ylab("Relative Abundance") + theme_bw()
-    
+
     ggsave(p, filename = imgName, dpi=dpi, width=7, height=6, limitsize = FALSE)
 
   }else{
@@ -101,17 +101,17 @@ PlotQEA.MetSet<-function(mSetObj=NA, setNM, format="png", dpi=72, width=NA){
       cols = 4
     }
 
-    bp <- ggplot(boxdata, aes(x=Class, y=Abundance, group=Class)) + 
+    bp <- ggplot(boxdata, aes(x=Class, y=Abundance, group=Class)) +
       geom_boxplot(aes(fill=Class), outlier.shape = NA, outlier.colour=NA) + theme_bw()
-    
-    bp <- bp + facet_wrap(. ~ Feature) + theme(strip.text.x = element_text(size=7), strip.background = element_rect(size=1)) + 
+
+    bp <- bp + facet_wrap(. ~ Feature) + theme(strip.text.x = element_text(size=7), strip.background = element_rect(size=1)) +
       xlab("") + ylab("Relative Abundance")
-    
+
     ggsave(bp, filename = imgName, dpi=dpi, width=w, height=h, limitsize = FALSE)
   }
 
   mSetObj$imgSet$current.img <- imgName;
-  
+
   if(.on.public.web){
     .set.mSet(mSetObj);
     return(imgName);
@@ -124,36 +124,36 @@ PlotQEA.MetSet<-function(mSetObj=NA, setNM, format="png", dpi=72, width=NA){
 #'@usage PlotConcRange(mSetObj, nm, format="png", dpi=72, width=NA)
 #'@param mSetObj Input the name of the created mSetObj (see InitDataObjects)
 #'@param nm of the input compound
-#'@param format Select the image format, "png", or "pdf". 
-#'@param dpi Input the dpi. If the image format is "pdf", users need not define the dpi. For "png" images, 
-#'the default dpi is 72. It is suggested that for high-resolution images, select a dpi of 300.  
+#'@param format Select the image format, "png", or "pdf".
+#'@param dpi Input the dpi. If the image format is "pdf", users need not define the dpi. For "png" images,
+#'the default dpi is 72. It is suggested that for high-resolution images, select a dpi of 300.
 #'@param width Input the width, there are 2 default widths, the first, width = NULL, is 10.5.
-#'The second default is width = 0, where the width is 7.2. Otherwise users can input their own width.  
+#'The second default is width = 0, where the width is 7.2. Otherwise users can input their own width.
 #'@author Jeff Xia \email{jeff.xia@mcgill.ca}
 #'McGill University, Canada
 #'License: GNU GPL (>= 2)
 #'@export
 
 PlotConcRange<-function(mSetObj=NA, nm, format="png", dpi=72, width=NA){
-  
+
   mSetObj <- .get.mSet(mSetObj);
-  
+
   inx <- which(names(mSetObj$analSet$ssp.lows)==nm);
   lows <- mSetObj$analSet$ssp.lows[[inx]];
-  
+
   if(length(lows)==1 && is.na(lows)){
     return();
   }
-  
+
   #conc<-dataSet$norm[inx];
   means <- mSetObj$analSet$ssp.means[[inx]];
   highs <- mSetObj$analSet$ssp.highs[[inx]];
-  
+
   cmpdNm <- mSetObj$analSet$ssp.mat[inx,1];
   conc <- as.numeric(mSetObj$analSet$ssp.mat[inx,2]);
   hmdbID <- mSetObj$analSet$ssp.mat[inx,3];
   imgName <<- paste(hmdbID, "dpi", dpi, ".png", sep="");
-  
+
   if(is.na(width)){
     w <- h <- 7;
   }else if(width == 0){
@@ -161,10 +161,10 @@ PlotConcRange<-function(mSetObj=NA, nm, format="png", dpi=72, width=NA){
   }else{
     w <- h <- width;
   }
-  
+
   mSetObj$imgSet$conc.range <- imgName;
   mSetObj$imgSet$current.img <- imgName;
-  
+
   rng <- range(lows, highs, conc);
   ext <- (rng[2]-rng[1])/8;
   max.rg <- rng[2]+ext;
@@ -173,26 +173,26 @@ PlotConcRange<-function(mSetObj=NA, nm, format="png", dpi=72, width=NA){
   if(mSetObj$dataSet$biofluid =="urine"){
     unit <- "(umol/mmol_creatine)"
   }
-  
+
   Cairo::Cairo(file = imgName, unit="in", dpi=dpi, width=w, height=h, type=format, bg="white");
   concplot(means, lows, highs, xlim=c(min.rg, max.rg), labels = paste("Study ", 1:length(lows)),
            main=cmpdNm, xlab=paste("Concentration Range", unit), ylab="Study Reference")
   abline(v=c(range(lows, highs), conc), col=c("lightgrey", "lightgrey", "orange"), lty=c(5, 5, 5), lwd=c(1,1,2));
-  
+
   # label the measured the concentration to the side
   text(conc, 0, conc, pos=4, col="orange");
   # extend the left end of axis to look natural without labeling
   axis(1, at=c(min.rg-ext, min.rg), label=F, lwd.tick=0);
-  
+
   dev.off();
-  
+
   mSetObj$imgSet$current.img <- imgName;
-  
+
   if(.on.public.web){
     .set.mSet(mSetObj);
     return(imgName);
   }
-  
+
   return(.set.mSet(mSetObj));
 }
 
@@ -201,28 +201,28 @@ PlotConcRange<-function(mSetObj=NA, nm, format="png", dpi=72, width=NA){
 #'@usage PlotORA(mSetObj=NA, imgName, imgOpt, format="png", dpi=72, width=NA)
 #'@param mSetObj Input the name of the created mSetObj (see InitDataObjects)
 #'@param imgName Input a name for the plot
-#'@param imgOpt "net" 
-#'@param format Select the image format, "png", or "pdf". 
-#'@param dpi Input the dpi. If the image format is "pdf", users need not define the dpi. For "png" images, 
-#'the default dpi is 72. It is suggested that for high-resolution images, select a dpi of 300.  
+#'@param imgOpt "net"
+#'@param format Select the image format, "png", or "pdf".
+#'@param dpi Input the dpi. If the image format is "pdf", users need not define the dpi. For "png" images,
+#'the default dpi is 72. It is suggested that for high-resolution images, select a dpi of 300.
 #'@param width Input the width, there are 2 default widths, the first, width = NULL, is 10.5.
-#'The second default is width = 0, where the width is 7.2. Otherwise users can input their own width.  
+#'The second default is width = 0, where the width is 7.2. Otherwise users can input their own width.
 #'@author Jeff Xia \email{jeff.xia@mcgill.ca}
 #'McGill University, Canada
 #'License: GNU GPL (>= 2)
 #'@export
 
 PlotORA<-function(mSetObj=NA, imgName, imgOpt, format="png", dpi=72, width=NA){
-  
+
   mSetObj <- .get.mSet(mSetObj);
-  
+
   #calculate the enrichment fold change
   folds <- mSetObj$analSet$ora.mat[,3]/mSetObj$analSet$ora.mat[,2];
   names(folds) <- GetShortNames(rownames(mSetObj$analSet$ora.mat));
   pvals <- mSetObj$analSet$ora.mat[,4];
-  
+
   imgName = paste(imgName, "dpi", dpi, ".", format, sep="");
-  
+
   if(is.na(width)){
     w <- 9;
   }else if(width == 0){
@@ -231,20 +231,20 @@ PlotORA<-function(mSetObj=NA, imgName, imgOpt, format="png", dpi=72, width=NA){
     w <-width;
   }
   h <- w;
-  
+
   #record img
   mSetObj$imgSet$ora <- imgName
   mSetObj$imgSet$current.img <- imgName;
-  
+
   Cairo::Cairo(file = imgName, unit="in", dpi=dpi, width=w, height=h, type=format, bg="white");
-  
+
   PlotMSEA.Overview(folds, pvals);
   dev.off();
-  
+
   if(.on.public.web){
     mSetObj$analSet$enrich.net <- PlotEnrichNet.Overview(folds, pvals);
   }
-  
+
   return(.set.mSet(mSetObj));
 }
 
@@ -253,27 +253,27 @@ PlotORA<-function(mSetObj=NA, imgName, imgOpt, format="png", dpi=72, width=NA){
 #'@usage PlotQEA.Overview(mSetObj=NA, imgName, imgOpt, format="png", dpi=72, width=NA)
 #'@param mSetObj Input the name of the created mSetObj (see InitDataObjects)
 #'@param imgName Input a name for the plot
-#'@param imgOpt "net" 
-#'@param format Select the image format, "png", or "pdf". 
-#'@param dpi Input the dpi. If the image format is "pdf", users need not define the dpi. For "png" images, 
-#'the default dpi is 72. It is suggested that for high-resolution images, select a dpi of 300.  
+#'@param imgOpt "net"
+#'@param format Select the image format, "png", or "pdf".
+#'@param dpi Input the dpi. If the image format is "pdf", users need not define the dpi. For "png" images,
+#'the default dpi is 72. It is suggested that for high-resolution images, select a dpi of 300.
 #'@param width Input the width, there are 2 default widths, the first, width = NULL, is 10.5.
-#'The second default is width = 0, where the width is 7.2. Otherwise users can input their own width.  
+#'The second default is width = 0, where the width is 7.2. Otherwise users can input their own width.
 #'@author Jeff Xia \email{jeff.xia@mcgill.ca}
 #'McGill University, Canada
 #'License: GNU GPL (>= 2)
 #'@export
 #'
 PlotQEA.Overview <-function(mSetObj=NA, imgName, imgOpt, format="png", dpi=72, width=NA){
-  
+
   mSetObj <- .get.mSet(mSetObj);
-  
+
   #calculate the enrichment fold change
   folds <- mSetObj$analSet$qea.mat[,3]/mSetObj$analSet$qea.mat[,4];
   names(folds) <- GetShortNames(rownames(mSetObj$analSet$qea.mat));
   pvals <- mSetObj$analSet$qea.mat[, "Raw p"];
   imgName = paste(imgName, "dpi", dpi, ".", format, sep="");
-  
+
   if(is.na(width)){
     w <- 9;
   }else if(width == 0){
@@ -282,15 +282,15 @@ PlotQEA.Overview <-function(mSetObj=NA, imgName, imgOpt, format="png", dpi=72, w
     w <- width;
   }
   h <- w;
-  
+
   Cairo::Cairo(file = imgName, unit="in", dpi=dpi, width=w, height=h, type=format, bg="white");
   PlotMSEA.Overview(folds, pvals);
   dev.off();
-  
+
   if(.on.public.web){
     mSetObj$analSet$enrich.net <- PlotEnrichNet.Overview(folds, pvals);
   }
-  
+
   mSetObj$imgSet$qea <-imgName;
   mSetObj$imgSet$current.img <- imgName;
   return(.set.mSet(mSetObj));
@@ -308,7 +308,7 @@ PlotQEA.Overview <-function(mSetObj=NA, imgName, imgOpt, format="png", dpi=72, w
 #'@export
 #'
 PlotMSEA.Overview <- function(folds, pvals){
-  
+
   # due to space limitation, plot top 50 if more than 50 were given
   title <- "Metabolite Sets Enrichment Overview";
   ht.col <- GetMyHeatCols(length(folds));
@@ -318,17 +318,17 @@ PlotMSEA.Overview <- function(folds, pvals){
     ht.col <- ht.col[1:25];
     title <- "Enrichment Overview (top 25)";
   }
-  
+
   op <- par(mar=c(5,20,4,6), oma=c(0,0,0,4));
-  
+
   barplot(rev(folds), horiz=T, col=rev(ht.col),
           xlab="Enrichment Ratio", las=1, cex.name=0.75, space=c(0.5, 0.5),
           main= title);
-  
+
   minP <- min(pvals);
   maxP <- max(pvals);
   medP <- (minP+maxP)/2;
-  
+
   axs.args <- list(at=c(minP, medP, maxP), labels=format(c(maxP, medP, minP), scientific=T, digit=1), tick = F);
   image.plot(legend.only=TRUE, zlim=c(minP, maxP), col=rev(ht.col),
              axis.args=axs.args, legend.shrink = 0.4, legend.lab="P value");
@@ -342,24 +342,24 @@ PlotMSEA.Overview <- function(folds, pvals){
 #'@param enrichType Input whether the enrichment analysis was over-respresentation
 #'analysis (ora) or quantitative enrichment analysis (qea).
 #'@param imgName Input a name for the plot
-#'@param format Select the image format, "png", or "pdf". 
-#'@param dpi Input the dpi. If the image format is "pdf", users need not define the dpi. For "png" images, 
-#'the default dpi is 72. It is suggested that for high-resolution images, select a dpi of 300.  
+#'@param format Select the image format, "png", or "pdf".
+#'@param dpi Input the dpi. If the image format is "pdf", users need not define the dpi. For "png" images,
+#'the default dpi is 72. It is suggested that for high-resolution images, select a dpi of 300.
 #'@param width Input the width, there are 2 default widths, the first, width = NULL, is 10.5.
-#'The second default is width = 0, where the width is 7.2. Otherwise users can input their own width.  
+#'The second default is width = 0, where the width is 7.2. Otherwise users can input their own width.
 #'@author Jeff Xia \email{jeff.xia@mcgill.ca}
 #'McGill University, Canada
 #'License: GNU GPL (>= 2)
 #'@export
 
 PlotEnrichDotPlot <- function(mSetObj=NA, enrichType = "ora", imgName, format="png", dpi=72, width=NA){
-  
+
   mSetObj <- .get.mSet(mSetObj);
-  
+
   if(.on.public.web){
     load_ggplot()
   }
-  
+
   if(enrichType == "ora"){
     results <- mSetObj$analSet$ora.mat
     my.cols <- GetMyHeatCols(nrow(results));
@@ -367,15 +367,18 @@ PlotEnrichDotPlot <- function(mSetObj=NA, enrichType = "ora", imgName, format="p
       results <- results[1:25,]
       my.cols <- my.cols[1:25];
     }
-    
+
+    #- Remove records with identcial names.
+    results <- results[match(unique(rownames(results)), rownames(results)), ]
+
     df <- data.frame(Name = factor(row.names(results), levels = rev(row.names(results))),
                      rawp = results[,4],
                      logp = -log10(results[,4]),
                      folds = results[,3]/results[,2])
-    
+
   }else if(enrichType == "qea"){
     results <- mSetObj$analSet$qea.mat
-    my.cols <- GetMyHeatCols(nrow(results));   
+    my.cols <- GetMyHeatCols(nrow(results));
     if(nrow(results) > 25){
       results <- results[1:25,]
       my.cols <- my.cols[1:25];
@@ -385,12 +388,12 @@ PlotEnrichDotPlot <- function(mSetObj=NA, enrichType = "ora", imgName, format="p
                      logp = -log10(results[,5]),
                      folds = results[,3]/results[,4]
                     )
-    
+
   }
 
   maxp <- max(df$rawp);
   imgName = paste(imgName, "dpi", dpi, ".", format, sep="");
-  
+
   if(is.na(width)){
     w <- 12;
     h <- 9;
@@ -399,28 +402,28 @@ PlotEnrichDotPlot <- function(mSetObj=NA, enrichType = "ora", imgName, format="p
   }else{
     h <- w <- width;
   }
-  
-  p <- ggplot(df, 
-              aes(x = logp, y = Name)) + 
+
+  p <- ggplot(df,
+              aes(x = logp, y = Name)) +
     geom_point(aes(size = folds, color = rawp)) + scale_size_continuous(range = c(2, 8)) +
     theme_bw(base_size = 14.5) +
     scale_colour_gradient(limits=c(0, maxp), low=my.cols[1], high = my.cols[length(my.cols)]) +
-    ylab(NULL) + xlab("-log10 (p-value)") + 
+    ylab(NULL) + xlab("-log10 (p-value)") +
     ggtitle("Overview of Enriched Metabolite Sets (Top 25)") +
     theme(legend.text=element_text(size=14),
           legend.title=element_text(size=15))
-  
+
   p$labels$colour <- "P-value"
   p$labels$size <- "Enrichment Ratio"
-  
+
   ggsave(p, filename = imgName, dpi=dpi, width=w, height=h)
-  
+
   if(enrichType == "ora"){
     mSetObj$imgSet$ora <- imgName
   }else if(enrichType == "qea"){
     mSetObj$imgSet$qea <-imgName;
   }
-  
+
   mSetObj$imgSet$current.img <- imgName;
   return(.set.mSet(mSetObj));
 }
@@ -430,7 +433,7 @@ concplot <- function(mn, lower, upper, labels=NULL,
                      xlab = "Odds ratio", ylab = "Study Reference",
                      xlim = NULL, line.col = "blue", text.col="forestgreen",
                      xaxt="s", ... ) {
-  
+
   n <- length( mn );
   nxlim <- xlim;
   nxlim[1] <- nxlim[1] - 0.25 * (nxlim[2] - nxlim[1] );
@@ -438,12 +441,12 @@ concplot <- function(mn, lower, upper, labels=NULL,
   plot(nxlim,c(1,-n-2),
        type = "n", bty = "n", xaxt = "n", yaxt = "n",
        xlab=xlab, ylab=ylab,... );
-  
+
   text(rep(nxlim[1], n ), -( 1:n ), labels,..., col=rep(text.col,length.out=n),adj=0);
   par( xaxt = "s")
   ats<-pretty(xlim, 6);
   axis(1, at=ats)
-  
+
   for ( i in 1:n ){
     if ( is.na( lower[i]+upper[i] ) )
       next
@@ -465,7 +468,7 @@ image.plot <- function(..., add = FALSE, nlevel = 64,
                        graphics.reset = FALSE, bigplot = NULL, smallplot = NULL,
                        legend.only = FALSE, col = tim.colors(nlevel), lab.breaks = NULL,
                        axis.args = NULL, legend.args = NULL, midpoint = FALSE) {
-  
+
   old.par <- par(no.readonly = TRUE)
   #  figure out zlim from passed arguments
   info <- image.plot.info(...)
@@ -571,16 +574,16 @@ image.plot <- function(..., add = FALSE, nlevel = 64,
             ylab = "", col = col, breaks = breaks)
     }
   }
-  
+
   #
   # now add the axis to the legend strip.
   # notice how all the information is in the list axis.args
   #
   do.call("axis", axis.args)
-  
+
   # add a box around legend strip
   box()
-  
+
   #
   # add a label to the axis if information has been  supplied
   # using the mtext function. The arguments to mtext are
@@ -755,7 +758,7 @@ image.plot.plt <- function(x, add = FALSE, legend.shrink = 0.9,
 #' @import igraph
 
 PlotEnrichNet.Overview <- function(folds, pvals, layoutOpt=layout.fruchterman.reingold){
-  
+
   # due to space limitation, plot top 50 if more than 50 were given
   title <- "Enrichment Network Overview";
   if(length(folds) > 50){
@@ -763,7 +766,7 @@ PlotEnrichNet.Overview <- function(folds, pvals, layoutOpt=layout.fruchterman.re
     pvals <- pvals[1:50];
     title <- "Enrichment Overview (top 50)";
   }
-  
+
   if(.on.public.web){
     load_igraph()
     #load_reshape()
@@ -775,13 +778,13 @@ PlotEnrichNet.Overview <- function(folds, pvals, layoutOpt=layout.fruchterman.re
   n <- length(pvalue);
   w <- matrix(NA, nrow=n, ncol=n);
   colnames(w) <- rownames(w) <- id;
-  
+
   for (i in 1:n) {
     for (j in i:n) {
       w[i,j] = overlap_ratio(geneSets[id[i]], geneSets[id[j]])
     }
   }
-  
+
   wd <- melt(w);
   wd <- wd[wd[,1] != wd[,2],];
   wd <- wd[!is.na(wd[,3]),];
@@ -795,13 +798,13 @@ PlotEnrichNet.Overview <- function(folds, pvals, layoutOpt=layout.fruchterman.re
 
   cnt <- folds;
   names(cnt) <- id;
-  #cnt2 <- (cnt[V(g)$name])^2; #make sure this is positve 
+  #cnt2 <- (cnt[V(g)$name])^2; #make sure this is positve
   #V(g)$size <- cnt2/sum(cnt2) * 100 #log(cnt2, base=10) * 10;
   #V(g)$size <- log(cnt2, base=10) * 10 + 1;
   V(g)$size <- cnt + 3;
 
   pos.xy <- layout.fruchterman.reingold(g,niter=500);
-  
+
   # now create the json object
   nodes <- vector(mode="list");
   node.nms <- V(g)$name;
@@ -810,14 +813,14 @@ PlotEnrichNet.Overview <- function(folds, pvals, layoutOpt=layout.fruchterman.re
   for(i in 1:length(node.sizes)){
     nodes[[i]] <- list(
       id = node.nms[i],
-      label=node.nms[i], 
-      size=node.sizes[i], 
+      label=node.nms[i],
+      size=node.sizes[i],
       color=node.cols[i],
       x = pos.xy[i,1],
       y = pos.xy[i,2]
     );
   }
-  
+
   edge.mat <- get.edgelist(g);
   edge.mat <- cbind(id=1:nrow(edge.mat), source=edge.mat[,1], target=edge.mat[,2]);
   # covert to json
@@ -825,8 +828,8 @@ PlotEnrichNet.Overview <- function(folds, pvals, layoutOpt=layout.fruchterman.re
   sink("msea_network.json");
   cat(RJSONIO::toJSON(netData));
   sink();
-  
-  return(g);  
+
+  return(g);
 }
 
 PrepareSifDownloads <- function(mSetObj=NA){
